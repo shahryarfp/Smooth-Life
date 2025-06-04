@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SmoothLife - Continuous Cellular Automaton</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #121212;
+      display: flex;
+      flex-direction: column;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      position: fixed;
+    }
+
+    #main {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #sidebar {
+      width: 100%;
+      height: 200px;
+      background-color: #1e1e1e;
+      border-top: 2px solid #333;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      transition: height 0.3s ease;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    #sidebar.collapsed {
+      height: 45px;
+    }
+
+    #toggleSidebarBtn {
+      font-size: 1.5rem;
+      text-align: center;
+      background-color: #1e1e1e;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      padding: 8px 0;
+      width: 100%;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      transition: background-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #toggleSidebarBtn:hover, #toggleSidebarBtn:active {
+      background-color: #333;
+      color: #00FFFF;
+    }
+
+    #sidebar h2 {
+      margin: 5px 10px;
+      font-size: 1rem;
+      text-align: center;
+      padding-bottom: 5px;
+      flex-shrink: 0;
+    }
+
+    #sidebar.collapsed h2 {
+      display: none;
+    }
+
+    #shapePalette {
+      display: flex;
+      flex-direction: row;
+      gap: 15px;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-grow: 1;
+      -webkit-overflow-scrolling: touch;
+      align-items: center;
+    }
+
+    #sidebar.collapsed #shapePalette {
+      display: none;
+    }
+
+    .shape-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    .shapeCanvas {
+      border: 1px solid #333;
+      background-color: #161616;
+      cursor: grab;
+      width: 70px;
+      height: 70px;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-size: 1.8rem;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+      align-self: center;
+      text-align: center;
+    }
+
+    #controls {
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 10px;
+      box-sizing: border-box;
+      align-items: center;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+    }
+    .control-row.multi-item {
+      flex-direction: row;
+      justify-content: space-around;
+    }
+      .control-row label {
+        min-width: 100px;
+        text-align: right;
+        margin-right: 5px;
+    }
+    .control-row input[type="range"] {
+        flex-grow: 1;
+        max-width: 180px;
+    }
+    .control-row .value-display {
+        min-width: 45px;
+        text-align: left;
+        font-family: monospace;
+    }
+
+
+    #controls button, #controls input[type="range"], #controls label {
+      padding: 10px 15px;
+      background-color: #1e1e1e;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-size: 0.9rem;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    #controls button { /* General buttons in main controls */
+      min-width: 180px; /* Adjusted for better fit */
+      text-align: center;
+    }
+    #toggleSimControlsBtn {
+        width: 100%;
+        max-width: 350px;
+        margin: 5px auto;
+    }
+
+
+    #controls button:hover, #controls input[type="range"]:hover,
+    #controls button:active, #controls input[type="range"]:active {
+      background-color: #333;
+    }
+
+    #controls input[type="range"] {
+      padding: 5px 0;
+    }
+    #controls label {
+      background-color: transparent;
+      box-shadow: none;
+      padding: 5px;
+    }
+
+    /* Styles for the floating simulation parameters panel */
+    #simulationParamsPanelContainer {
+        position: fixed; /* Detach from document flow */
+        top: 20px;
+        left: 20px;
+        z-index: 1000; /* Ensure it's on top */
+        display: none; /* Initially hidden */
+    }
+
+    #simulationParamsPanel {
+        background: linear-gradient(145deg, rgba(45, 45, 50, 0.22), rgba(30, 30, 35, 0.25));
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(120, 120, 120, 0.5);
+        border-radius: 12px;
+        padding: 15px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: auto;
+        min-width: 320px;
+        max-width: 380px;
+        box-sizing: border-box;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+
+    #simulationParamsPanelHeader { /* Draggable Header */
+      cursor: move;
+      background-color: rgba(60, 60, 65, 0.85);
+      padding: 10px 15px;
+      margin: -15px -20px 12px -20px;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      border-bottom: 1px solid rgba(100, 100, 100, 0.4);
+      user-select: none;
+    }
+
+    #simulationParamsPanelHeader h4 { /* Title within the header */
+        text-align: center;
+        margin: 0;
+        color: #00CFD8;
+        font-size: 1.15rem;
+        font-weight: 600;
+    }
+
+    #simulationParamsPanel .control-row {
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+    }
+      #simulationParamsPanel .control-row label {
+        min-width: 75px;
+        text-align: left;
+        font-size: 0.9rem;
+        color: #ddd;
+        margin-right: 5px;
+    }
+
+    /* Custom Slider Styles */
+    #simulationParamsPanel input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex-grow: 1;
+      max-width: 150px;
+      height: 10px;
+      background: #3a3f4b;
+      border-radius: 5px;
+      outline: none;
+      transition: background-color .2s;
+      padding: 0;
+      margin: 4px 0;
+    }
+
+    #simulationParamsPanel input[type="range"]:hover {
+      background: #4a5568;
+    }
+
+    #simulationParamsPanel input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #00CFD8;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid #282c34;
+      margin-top: -5px;
+      box-shadow: 0 0 5px rgba(0, 207, 216, 0.5);
+    }
+
+    #simulationParamsPanel input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #00CFD8;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid #282c34;
+      box-shadow: 0 0 5px rgba(0, 207, 216, 0.5);
+    }
+     #simulationParamsPanel input[type="range"]::-moz-range-track {
+      width: 100%;
+      height: 10px;
+      background: #3a3f4b;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+    }
+
+
+    #simulationParamsPanel .control-row .value-display {
+        min-width: 55px;
+        font-size: 0.9rem;
+        color: #f0f0f0;
+        background-color: rgba(0,0,0,0.3);
+        padding: 4px 8px;
+        border-radius: 5px;
+        text-align: center;
+        font-family: 'Consolas', 'Monaco', monospace;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Container for bottom buttons in the panel */
+    #simulationParamsPanel .panel-buttons-container {
+        display: flex;
+        justify-content: space-between; /* Distribute space between buttons */
+        gap: 10px; /* Space between buttons */
+        margin-top: 8px;
+    }
+
+    #simulationParamsPanel .panel-buttons-container button {
+        padding: 9px 14px;
+        font-size: 0.9rem;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        flex-grow: 1; /* Allow buttons to grow and share space */
+    }
+    
+    #resetSimParamsBtn { /* Specific styling for reset button */
+        background-color: #008C9E; /* Teal-ish */
+    }
+    #resetSimParamsBtn:hover {
+        background-color: #00A6BB;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+     #resetSimParamsBtn:active {
+        background-color: #007B8A;
+        transform: translateY(0px);
+    }
+
+    #hideSimParamsPanelBtn { /* Specific styling for new hide button */
+        background-color: #555; /* Greyish */
+    }
+    #hideSimParamsPanelBtn:hover {
+        background-color: #666;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    #hideSimParamsPanelBtn:active {
+        background-color: #444;
+        transform: translateY(0px);
+    }
+
+
+    #canvasContainer {
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-sizing: border-box;
+      position: relative;
+      padding: 5px;
+      min-height: 0;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #gameCanvas {
+      border: 1px solid #444;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
+      background-color: #1e1e1e;
+      cursor: crosshair;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    @media (min-width: 768px) {
+      #sidebar {
+        height: 220px;
+      }
+      #sidebar.collapsed {
+        height: 45px;
+      }
+      #sidebar h2 {
+        font-size: 1.1rem;
+        margin: 8px 15px;
+      }
+      #shapePalette {
+        padding: 15px;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      #controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        padding: 0 20px;
+      }
+      #controls .control-row {
+        width: auto;
+        flex-basis: auto;
+      }
+        #controls .control-row#toggleSimControlsBtnRow {
+        width: 100%;
+        justify-content: center;
+      }
+      #toggleSimControlsBtn {
+          max-width: 300px;
+      }
+
+      .control-row label {
+        min-width: 90px;
+      }
+        .control-row input[type="range"] {
+        max-width: 130px;
+      }
+      .control-row .value-display {
+        min-width: 40px;
+      }
+      #controls button {
+        min-width: auto;
+      }
+
+      #simulationParamsPanel { /* Panel adjustments for larger screens */
+        max-width: 420px; 
+        padding: 20px 25px;
+      }
+      #simulationParamsPanelHeader {
+         margin: -20px -25px 15px -25px; 
+      }
+        #simulationParamsPanel .control-row label {
+        min-width: 85px;
+        font-size: 0.95rem;
+      }
+      #simulationParamsPanel input[type="range"] {
+        max-width: 170px; 
+      }
+        #simulationParamsPanel .control-row .value-display {
+        font-size: 0.95rem;
+      }
+      #simulationParamsPanel .panel-buttons-container button {
+        font-size: 0.95rem;
+      }
+
+
+      #canvasContainer {
+        padding: 10px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      #controls button {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        min-width: 150px;
+      }
+        #toggleSimControlsBtn {
+        max-width: 280px;
+      }
+      .shapeCanvas {
+        width: 60px;
+        height: 60px;
+      }
+      #sidebar {
+        height: 180px;
+      }
+        #simulationParamsPanel {
+        left: 10px;
+        top: 10px;
+        min-width: calc(100vw - 20px); 
+        max-width: calc(100vw - 20px);
+        padding: 10px 15px;
+      }
+      #simulationParamsPanelHeader {
+         margin: -10px -15px 10px -15px; 
+      }
+      #simulationParamsPanel .control-row label {
+        min-width: 70px;
+        font-size: 0.8rem;
+      }
+      #simulationParamsPanel input[type="range"] {
+        max-width: 100px;
+      }
+        #simulationParamsPanel .control-row .value-display {
+        font-size: 0.8rem;
+      }
+       #simulationParamsPanel .panel-buttons-container button {
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Floating Panel Container -->
+  <div id="simulationParamsPanelContainer">
+    <div id="simulationParamsPanel">
+      <!-- Draggable Header -->
+      <div id="simulationParamsPanelHeader">
+        <h4>Simulation Parameters</h4>
+      </div>
+      <!-- Controls -->
+      <div class="control-row">
+          <label for="speedRange">Speed (T):</label>
+          <input type="range" id="speedRange" min="1" max="20" value="10">
+          <span id="speedValue" class="value-display">10</span>
+      </div>
+      <div class="control-row">
+          <label for="kernelRadiusRange">Kernel R:</label>
+          <input type="range" id="kernelRadiusRange" min="3" max="25" value="10" step="1">
+          <span id="kernelRadiusValue" class="value-display">10</span>
+      </div>
+      <div class="control-row">
+          <label for="muRange">Mu (μ):</label>
+          <input type="range" id="muRange" min="0.01" max="0.5" value="0.15" step="0.001">
+          <span id="muValue" class="value-display">0.150</span>
+      </div>
+      <div class="control-row">
+          <label for="sigmaRange">Sigma (σ):</label>
+          <input type="range" id="sigmaRange" min="0.001" max="0.1" value="0.015" step="0.001">
+          <span id="sigmaValue" class="value-display">0.015</span>
+      </div>
+      <!-- Buttons Container -->
+      <div class="panel-buttons-container">
+        <button id="resetSimParamsBtn">Reset</button> 
+        <button id="hideSimParamsPanelBtn">Hide</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <h1>SmoothLife</h1>
+    <div id="controls">
+      <div class="control-row">
+        <button id="startStopBtn">Start</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div class="control-row multi-item">
+        <button id="randomBtn">Random Seed</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+      <div class="control-row" id="toggleSimControlsBtnRow">
+          <button id="toggleSimControlsBtn">Show Controls</button>
+      </div>
+    </div>
+
+    <div id="canvasContainer">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+  </div>
+
+  <div id="sidebar" class="collapsed"> <!-- Added 'collapsed' class here -->
+    <button id="toggleSidebarBtn">▲</button> <!-- Changed text to ▲ -->
+    <h2>Patterns</h2>
+    <div id="shapePalette">
+      </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const rows = 100;
+    const cols = 100;
+    let cellSize;
+
+    let grid = createEmptyGrid();
+    let initialGrid = createEmptyGrid();
+
+    let running = false;
+    let timeoutId = null;
+
+    // --- Initial Default Simulation Parameters ---
+    const INITIAL_TIME_SCALING_PARAM = 10;
+    const INITIAL_KERNEL_RADIUS = 10;
+    const INITIAL_MU = 0.15;
+    const INITIAL_SIGMA = 0.015;
+    const INITIAL_SPEED_SLIDER_VAL = 10; 
+
+    // --- Current Simulation Parameters ---
+    let timeScaling = INITIAL_TIME_SCALING_PARAM;
+    let KERNEL_RADIUS = INITIAL_KERNEL_RADIUS;
+    let MU = INITIAL_MU;
+    let SIGMA = INITIAL_SIGMA;
+
+    let kernel = null;
+
+    // DOM Elements
+    const startStopBtn = document.getElementById('startStopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const speedRange = document.getElementById('speedRange');
+    const speedValueDisplay = document.getElementById('speedValue');
+    const kernelRadiusRange = document.getElementById('kernelRadiusRange');
+    const kernelRadiusValueDisplay = document.getElementById('kernelRadiusValue');
+    const muRange = document.getElementById('muRange');
+    const muValueDisplay = document.getElementById('muValue');
+    const sigmaRange = document.getElementById('sigmaRange');
+    const sigmaValueDisplay = document.getElementById('sigmaValue');
+    const resetSimParamsBtn = document.getElementById('resetSimParamsBtn');
+    const hideSimParamsPanelBtn = document.getElementById('hideSimParamsPanelBtn'); 
+
+    const toggleSimControlsBtn = document.getElementById('toggleSimControlsBtn'); 
+    const simulationParamsPanelContainer = document.getElementById('simulationParamsPanelContainer');
+
+    const shapePalette = document.getElementById('shapePalette');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const sidebar = document.getElementById('sidebar');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+
+    let viewOffsetX = 0;
+    let viewOffsetY = 0;
+    let isPanning = false;
+    let lastPanX, lastPanY;
+
+    const MIN_CELL_SIZE_DESKTOP = 2;
+    const MIN_CELL_SIZE_MOBILE = 4;
+    let currentMinCellSize = window.innerWidth < 768 ? MIN_CELL_SIZE_MOBILE : MIN_CELL_SIZE_DESKTOP;
+    const MAX_CELL_SIZE = 100;
+    let initialCellSizeSetup = true;
+
+    let pinchStartDistance = null;
+    let touchStartX, touchStartY, touchStartTime;
+    const TAP_THRESHOLD = 10;
+    const TAP_DURATION_THRESHOLD = 250;
+
+    // Only Glider pattern
+    const shapes = {
+      Glider: [[0,1],[1,2],[2,0],[2,1],[2,2]]
+    };
+    const previewSize = 70;
+
+    function gaussian(x, mu_param, sigma_param) {
+      return Math.exp(-0.5 * Math.pow((x - mu_param) / sigma_param, 2));
+    }
+
+    function generateKernel() {
+      const peak_offset_kernel = 0.5;
+      const width_param_kernel = 0.15;
+      const kernelSize = 2 * KERNEL_RADIUS + 1;
+      let tempKernel = Array(kernelSize).fill(null).map(() => Array(kernelSize).fill(0));
+      let sumKernel = 0;
+      for (let dy = -KERNEL_RADIUS; dy <= KERNEL_RADIUS; dy++) {
+        for (let dx = -KERNEL_RADIUS; dx <= KERNEL_RADIUS; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= KERNEL_RADIUS) {
+            const val = gaussian(dist / KERNEL_RADIUS, peak_offset_kernel, width_param_kernel);
+            tempKernel[dy + KERNEL_RADIUS][dx + KERNEL_RADIUS] = val;
+            sumKernel += val;
+          }
+        }
+      }
+      kernel = Array(kernelSize).fill(null).map(() => Array(kernelSize).fill(0));
+      if (sumKernel > 0) {
+        for (let r_k = 0; r_k < kernelSize; r_k++) {
+          for (let c_k = 0; c_k < kernelSize; c_k++) {
+            kernel[r_k][c_k] = tempKernel[r_k][c_k] / sumKernel;
+          }
+        }
+      }
+    }
+
+    function createShapePreviews() {
+      shapePalette.innerHTML = '';
+      for (let [name, pattern] of Object.entries(shapes)) {
+        const container = document.createElement('div'); container.classList.add('shape-container');
+        const label = document.createElement('div'); label.textContent = name; label.style.marginBottom = '5px';
+        const shapeCanvasEl = document.createElement('canvas');
+        shapeCanvasEl.width = previewSize; shapeCanvasEl.height = previewSize;
+        shapeCanvasEl.classList.add('shapeCanvas'); shapeCanvasEl.draggable = true; shapeCanvasEl.dataset.shape = name;
+        const sCtx = shapeCanvasEl.getContext('2d');
+        sCtx.fillStyle = '#161616'; sCtx.fillRect(0, 0, previewSize, previewSize);
+        let maxRow = 0, maxCol = 0;
+        pattern.forEach(([r_pat, c_pat]) => { if (r_pat > maxRow) maxRow = r_pat; if (c_pat > maxCol) maxCol = c_pat; });
+        const rowsUsed = maxRow + 1; const colsUsed = maxCol + 1;
+        const previewCellSize = Math.max(1, Math.floor(previewSize / Math.max(rowsUsed, colsUsed, 1)));
+        const offsetX = (previewSize - colsUsed * previewCellSize) / 2;
+        const offsetY = (previewSize - rowsUsed * previewCellSize) / 2;
+        sCtx.fillStyle = '#00FFFF';
+        pattern.forEach(([r_pat, c_pat]) => { sCtx.fillRect(offsetX + c_pat * previewCellSize, offsetY + r_pat * previewCellSize, previewCellSize -0.5, previewCellSize -0.5); });
+        sCtx.strokeStyle = '#333'; sCtx.lineWidth = 0.5;
+        if (previewCellSize > 3) { for (let i = 0; i < rowsUsed; i++) { for (let j = 0; j < colsUsed; j++) { sCtx.strokeRect(offsetX + j * previewCellSize, offsetY + i * previewCellSize, previewCellSize, previewCellSize); } } }
+        shapeCanvasEl.addEventListener('dragstart', (event) => { event.dataTransfer.setData('text/plain', name); });
+        container.appendChild(label); container.appendChild(shapeCanvasEl); shapePalette.appendChild(container);
+      }
+    }
+
+    function resizeCanvas() {
+      currentMinCellSize = window.innerWidth < 768 ? MIN_CELL_SIZE_MOBILE : MIN_CELL_SIZE_DESKTOP;
+      if (!canvasContainer.clientWidth || !canvasContainer.clientHeight) { requestAnimationFrame(resizeCanvas); return; }
+      const containerWidth = canvasContainer.clientWidth; const containerHeight = canvasContainer.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
+      const oldCanvasWidth = canvas.width; const oldCanvasHeight = canvas.height;
+      let centerXGrid = viewOffsetX + (oldCanvasWidth / 2 / (cellSize || currentMinCellSize));
+      let centerYGrid = viewOffsetY + (oldCanvasHeight / 2 / (cellSize || currentMinCellSize));
+      canvas.width = containerWidth; canvas.height = containerHeight; ctx.imageSmoothingEnabled = false;
+      if (initialCellSizeSetup) {
+        let initialFitCellSize = Math.floor(Math.min(containerWidth / cols, containerHeight / rows));
+        if (window.innerWidth < 768) { initialFitCellSize = Math.floor(Math.min(containerWidth / (cols/1.5), containerHeight / (rows/1.5)));}
+        cellSize = Math.max(currentMinCellSize, initialFitCellSize);
+        viewOffsetX = (cols - containerWidth / cellSize) / 2; viewOffsetY = (rows - containerHeight / cellSize) / 2;
+        initialCellSizeSetup = false;
+      } else {
+        if (cellSize > 0) { viewOffsetX = centerXGrid - (canvas.width / 2 / cellSize); viewOffsetY = centerYGrid - (canvas.height / 2 / cellSize);
+        } else { cellSize = currentMinCellSize; viewOffsetX = (cols - containerWidth / cellSize) / 2; viewOffsetY = (rows - containerHeight / cellSize) / 2; }
+      }
+      clampViewOffset(); drawGrid();
+    }
+
+    function clampViewOffset() {
+      if (typeof cellSize === 'undefined' || cellSize <= 0 || !canvas.width || !canvas.height) return;
+      if (cols * cellSize < canvas.width) { viewOffsetX = (cols * cellSize - canvas.width) / (2 * cellSize);
+      } else { const minX = 0; const maxX = Math.max(0, cols - (canvas.width / cellSize)); viewOffsetX = Math.max(minX, Math.min(viewOffsetX, maxX)); }
+      if (rows * cellSize < canvas.height) { viewOffsetY = (rows * cellSize - canvas.height) / (2 * cellSize);
+      } else { const minY = 0; const maxY = Math.max(0, rows - (canvas.height / cellSize)); viewOffsetY = Math.max(minY, Math.min(viewOffsetY, maxY)); }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100); // Initial resize
+    
+    // Sidebar toggle logic
+    toggleSidebarBtn.addEventListener('click', () => { 
+      sidebar.classList.toggle('collapsed'); 
+      toggleSidebarBtn.textContent = sidebar.classList.contains('collapsed') ? '▲' : '▼'; 
+      setTimeout(resizeCanvas, 310); // Resize after animation
+    });
+    createShapePreviews(); // Create previews after shapes object is defined
+
+    function applyZoom(zoomFactor, mouseX, mouseY) {
+        if (typeof cellSize === 'undefined') return;
+        const mouseGridX_before = (mouseX / cellSize) + viewOffsetX; const mouseGridY_before = (mouseY / cellSize) + viewOffsetY;
+        let newCellSize = cellSize * zoomFactor; newCellSize = Math.max(currentMinCellSize, Math.min(MAX_CELL_SIZE, newCellSize));
+        if (newCellSize === cellSize) return; cellSize = newCellSize;
+        viewOffsetX = mouseGridX_before - (mouseX / cellSize); viewOffsetY = mouseGridY_before - (mouseY / cellSize);
+        clampViewOffset(); drawGrid();
+    }
+    canvas.addEventListener('wheel', (event) => { event.preventDefault(); const rect = canvas.getBoundingClientRect(); const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top; const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9; applyZoom(zoomFactor, mouseX, mouseY);}, { passive: false });
+    function startPan(clientX, clientY) { isPanning = true; lastPanX = clientX; lastPanY = clientY; canvas.style.cursor = 'grabbing';}
+    function movePan(clientX, clientY) { if (!isPanning || typeof cellSize === 'undefined' || cellSize <= 0) return; const dx = clientX - lastPanX; const dy = clientY - lastPanY; viewOffsetX -= dx / cellSize; viewOffsetY -= dy / cellSize; lastPanX = clientX; lastPanY = clientY; clampViewOffset(); drawGrid(); }
+    function stopPan() { if (isPanning) { isPanning = false; canvas.style.cursor = running ? 'grab' : 'crosshair'; } pinchStartDistance = null; }
+    canvas.addEventListener('mousedown', (event) => { if (event.button !== 0 || event.target !== canvas || event.target.classList.contains('shapeCanvas')) return; startPan(event.clientX, event.clientY); });
+    canvas.addEventListener('mousemove', (event) => { movePan(event.clientX, event.clientY); });
+    window.addEventListener('mouseup', stopPan); canvas.addEventListener('mouseleave', stopPan);
+    canvas.addEventListener('touchstart', (event) => { if (event.touches.length === 1) { const touch = event.touches[0]; touchStartX = touch.clientX; touchStartY = touch.clientY; touchStartTime = Date.now(); startPan(touch.clientX, touch.clientY); } else if (event.touches.length === 2) { isPanning = false; const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; pinchStartDistance = Math.sqrt(dx * dx + dy * dy); }}, { passive: false });
+    canvas.addEventListener('touchmove', (event) => { event.preventDefault(); if (event.touches.length === 1 && isPanning) { movePan(event.touches[0].clientX, event.touches[0].clientY); } else if (event.touches.length === 2 && pinchStartDistance) { const dx = event.touches[0].clientX - event.touches[1].clientX; const dy = event.touches[0].clientY - event.touches[1].clientY; const currentDistance = Math.sqrt(dx * dx + dy * dy); const zoomFactor = currentDistance / pinchStartDistance; const rect = canvas.getBoundingClientRect(); const MclientX = (event.touches[0].clientX + event.touches[1].clientX) / 2; const MclientY = (event.touches[0].clientY + event.touches[1].clientY) / 2; const mouseX = MclientX - rect.left; const mouseY = MclientY - rect.top; applyZoom(zoomFactor, mouseX, mouseY); pinchStartDistance = currentDistance; }}, { passive: false });
+    canvas.addEventListener('touchend', (event) => { let wasTapHandled = false; if (event.changedTouches.length === 1 && touchStartX !== undefined && touchStartTime !== undefined) { const touch = event.changedTouches[0]; const deltaX = touch.clientX - touchStartX; const deltaY = touch.clientY - touchStartY; const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY); const duration = Date.now() - touchStartTime; if (distance < TAP_THRESHOLD && duration < TAP_DURATION_THRESHOLD && !running && typeof cellSize !== 'undefined') { event.preventDefault(); const rect = canvas.getBoundingClientRect(); const x = touch.clientX - rect.left; const y = touch.clientY - rect.top; const col = Math.floor(x / cellSize + viewOffsetX); const row = Math.floor(y / cellSize + viewOffsetY); if (row >= 0 && row < rows && col >= 0 && col < cols) { grid[row][col] = 1.0; if (!running) { initialGrid[row][col] = grid[row][col]; } drawGrid(); } wasTapHandled = true; isPanning = false; canvas.style.cursor = running ? 'grab' : 'crosshair'; } } if (event.touches.length < 2) { pinchStartDistance = null; } if (event.touches.length < 1) { if (!wasTapHandled) { stopPan(); } touchStartX = undefined; touchStartY = undefined; touchStartTime = undefined; }});
+    canvas.addEventListener('click', (event) => { if (running || typeof cellSize === 'undefined' || isPanning) return; setTimeout(() => { if (isPanning) return; const rect = canvas.getBoundingClientRect(); const x = event.clientX - rect.left; const y = event.clientY - rect.top; const col = Math.floor(x / cellSize + viewOffsetX); const row = Math.floor(y / cellSize + viewOffsetY); if (row >= 0 && row < rows && col >= 0 && col < cols) { grid[row][col] = 1.0; if (!running) { initialGrid[row][col] = grid[row][col]; } drawGrid(); }}, 50); });
+    canvas.addEventListener('dragover', (event) => { event.preventDefault(); });
+    canvas.addEventListener('drop', (event) => { event.preventDefault(); if (typeof cellSize === 'undefined') return; const shapeName = event.dataTransfer.getData('text/plain'); if (!shapeName || !shapes[shapeName]) return; const rect = canvas.getBoundingClientRect(); const x = event.clientX - rect.left; const y = event.clientY - rect.top; const baseCol = Math.floor(x / cellSize + viewOffsetX); const baseRow = Math.floor(y / cellSize + viewOffsetY); const pattern = shapes[shapeName]; pattern.forEach(([r_pat, c_pat]) => { const row_cell = baseRow + r_pat; const col_cell = baseCol + c_pat; if (row_cell >= 0 && row_cell < rows && col_cell >= 0 && col_cell < cols) { grid[row_cell][col_cell] = 1.0; if (!running) { initialGrid[row_cell][col_cell] = 1.0; } } }); drawGrid(); });
+    startStopBtn.addEventListener('click', () => { if (!running) { running = true; startStopBtn.textContent = 'Stop'; canvas.style.cursor = 'grab'; initialGrid = grid.map(rowArray => rowArray.slice()); runGame(); } else { running = false; startStopBtn.textContent = 'Start'; if (timeoutId) clearTimeout(timeoutId); canvas.style.cursor = isPanning ? 'grabbing' : 'crosshair'; }});
+    resetBtn.addEventListener('click', () => { if (running) { running = false; startStopBtn.textContent = 'Start'; if (timeoutId) clearTimeout(timeoutId); } grid = initialGrid.map(rowArray => rowArray.slice()); drawGrid(); canvas.style.cursor = 'crosshair'; });
+    randomBtn.addEventListener('click', () => { if (running) { running = false; startStopBtn.textContent = 'Start'; if (timeoutId) clearTimeout(timeoutId); } grid = createEmptyGrid(); for (let r_cell = 0; r_cell < rows; r_cell++) { for (let c_cell = 0; c_cell < cols; c_cell++) { if (Math.random() < 0.15) { grid[r_cell][c_cell] = 1.0; } } } initialGrid = grid.map(rowArray => rowArray.slice()); drawGrid(); canvas.style.cursor = 'crosshair'; });
+    clearBtn.addEventListener('click', () => { if (running) { running = false; startStopBtn.textContent = 'Start'; if (timeoutId) clearTimeout(timeoutId); } grid = createEmptyGrid(); initialGrid = createEmptyGrid(); drawGrid(); canvas.style.cursor = 'crosshair'; });
+
+    const MIN_T_SLIDER_PARAM = 4;
+    const MAX_T_SLIDER_PARAM = 20;
+
+    function updateTimeScaling() {
+        const sliderValue = parseInt(speedRange.value, 10);
+        const normValue = (sliderValue - 1) / (20 - 1);
+        timeScaling = MAX_T_SLIDER_PARAM - normValue * (MAX_T_SLIDER_PARAM - MIN_T_SLIDER_PARAM);
+        if (timeScaling < MIN_T_SLIDER_PARAM && MIN_T_SLIDER_PARAM > 0) timeScaling = MIN_T_SLIDER_PARAM;
+        if (timeScaling <= 0) timeScaling = 0.1;
+        speedValueDisplay.textContent = timeScaling.toFixed(2);
+    }
+    function updateKernelRadius() { KERNEL_RADIUS = parseInt(kernelRadiusRange.value, 10); kernelRadiusValueDisplay.textContent = KERNEL_RADIUS; generateKernel(); }
+    function updateMu() { MU = parseFloat(muRange.value); muValueDisplay.textContent = MU.toFixed(3); }
+    function updateSigma() { SIGMA = parseFloat(sigmaRange.value); sigmaValueDisplay.textContent = SIGMA.toFixed(3); }
+
+    speedRange.addEventListener('input', updateTimeScaling);
+    kernelRadiusRange.addEventListener('input', updateKernelRadius);
+    muRange.addEventListener('input', updateMu);
+    sigmaRange.addEventListener('input', updateSigma);
+
+    // Function to toggle the simulation panel visibility
+    function toggleSimulationPanel() {
+        const isHidden = simulationParamsPanelContainer.style.display === 'none' || simulationParamsPanelContainer.style.display === '';
+        simulationParamsPanelContainer.style.display = isHidden ? 'block' : 'none';
+        toggleSimControlsBtn.textContent = isHidden ? 'Hide Controls' : 'Show Controls';
+    }
+
+    toggleSimControlsBtn.addEventListener('click', toggleSimulationPanel);
+    hideSimParamsPanelBtn.addEventListener('click', toggleSimulationPanel); 
+
+    resetSimParamsBtn.addEventListener('click', () => {
+        timeScaling = INITIAL_TIME_SCALING_PARAM;
+        KERNEL_RADIUS = INITIAL_KERNEL_RADIUS;
+        MU = INITIAL_MU;
+        SIGMA = INITIAL_SIGMA;
+        initializeParameters();
+    });
+
+    function initializeParameters() {
+        if ((MAX_T_SLIDER_PARAM - MIN_T_SLIDER_PARAM) !== 0) {
+              speedRange.value = ((MAX_T_SLIDER_PARAM - INITIAL_TIME_SCALING_PARAM) / (MAX_T_SLIDER_PARAM - MIN_T_SLIDER_PARAM)) * (20 - 1) + 1;
+        } else {
+            speedRange.value = INITIAL_SPEED_SLIDER_VAL; 
+        }
+
+        kernelRadiusRange.value = INITIAL_KERNEL_RADIUS;
+        muRange.value = INITIAL_MU;
+        sigmaRange.value = INITIAL_SIGMA;
+
+        updateTimeScaling();
+        updateKernelRadius();
+        updateMu();
+        updateSigma();
+    }
+
+    function createEmptyGrid() { return Array.from({ length: rows }, () => Array(cols).fill(0.0)); }
+    function drawGrid() {
+      if (!ctx || !canvas.width || !canvas.height || typeof cellSize === 'undefined' || cellSize <= 0) return;
+      ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#1e1e1e'; ctx.fillRect(0,0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = Math.max(0.1, Math.min(1, cellSize / 10));
+      const buffer = 1;
+      const startCol = Math.floor(viewOffsetX - buffer); const endCol = Math.ceil(viewOffsetX + canvas.width / cellSize + buffer);
+      const startRow = Math.floor(viewOffsetY - buffer); const endRow = Math.ceil(viewOffsetY + canvas.height / cellSize + buffer);
+      for (let r_cell = startRow; r_cell < endRow; r_cell++) { for (let c_cell = startCol; c_cell < endCol; c_cell++) { if (r_cell < 0 || r_cell >= rows || c_cell < 0 || c_cell >= cols) continue; const screenX = (c_cell - viewOffsetX) * cellSize; const screenY = (r_cell - viewOffsetY) * cellSize; const cellValue = grid[r_cell][c_cell]; if (cellValue > 0.01) { const intensity = Math.floor(cellValue * 255); ctx.fillStyle = `rgb(${intensity},${intensity},${intensity})`; if (cellSize < 3) { ctx.fillRect(screenX + ctx.lineWidth, screenY + ctx.lineWidth, cellSize - (ctx.lineWidth*2), cellSize - (ctx.lineWidth*2)); } else { ctx.fillRect(screenX, screenY, cellSize, cellSize); } } if (cellSize > 3) { ctx.strokeRect(screenX, screenY, cellSize, cellSize); }}}
+    }
+    function calculateNeighborhoodField() {
+      const newField = createEmptyGrid(); const kernelEdge = KERNEL_RADIUS;
+      if (!kernel || kernel.length !== (2 * KERNEL_RADIUS + 1)) { generateKernel(); if(!kernel) { console.error("Kernel generation failed"); return newField; }}
+      for (let r_cell = 0; r_cell < rows; r_cell++) { for (let c_cell = 0; c_cell < cols; c_cell++) { let sum = 0; for (let dy = -KERNEL_RADIUS; dy <= KERNEL_RADIUS; dy++) { for (let dx = -KERNEL_RADIUS; dx <= KERNEL_RADIUS; dx++) { const nr = (r_cell + dy + rows) % rows; const nc = (c_cell + dx + cols) % cols; if (kernel[dy + kernelEdge] && typeof kernel[dy + kernelEdge][dx + kernelEdge] === 'number') { sum += grid[nr][nc] * kernel[dy + kernelEdge][dx + kernelEdge]; }}} newField[r_cell][c_cell] = sum; }}
+      return newField;
+    }
+    function growthFunction(s_val) { const peakValue = gaussian(s_val, MU, SIGMA); return 2 * peakValue - 1; }
+    function updateGridStates() {
+      const nextGrid = createEmptyGrid(); const field = calculateNeighborhoodField();
+      const dt = 1.0 / timeScaling;
+      for (let r_cell = 0; r_cell < rows; r_cell++) { for (let c_cell = 0; c_cell < cols; c_cell++) { const s_val = field[r_cell][c_cell]; const delta = growthFunction(s_val); let newValue = grid[r_cell][c_cell] + dt * delta; nextGrid[r_cell][c_cell] = Math.max(0.0, Math.min(1.0, newValue)); }}
+      return nextGrid;
+    }
+    function runGame() { if (!running) return; grid = updateGridStates(); drawGrid(); const targetFPS = 30; timeoutId = setTimeout(() => { requestAnimationFrame(runGame); }, 1000 / targetFPS); }
+
+
+    // --- Draggable Panel Logic ---
+    const panelDraggableContainer = document.getElementById('simulationParamsPanelContainer');
+    const panelDraggableHeader = document.getElementById('simulationParamsPanelHeader');
+
+    let isPanelDragging = false;
+    let panelDragOffsetX, panelDragOffsetY;
+
+    if (panelDraggableHeader && panelDraggableContainer) {
+        panelDraggableHeader.onmousedown = panelDragMouseDown;
+        panelDraggableHeader.ontouchstart = panelDragTouchStart;
+    }
+
+    function panelDragMouseDown(e) {
+        e = e || window.event;
+        isPanelDragging = true;
+        panelDragOffsetX = e.clientX - panelDraggableContainer.offsetLeft;
+        panelDragOffsetY = e.clientY - panelDraggableContainer.offsetTop;
+        document.onmouseup = closePanelDragElement;
+        document.onmousemove = panelElementDragMouse;
+        document.body.style.userSelect = 'none';
+    }
+
+    function panelElementDragMouse(e) {
+        if (!isPanelDragging) return;
+        e = e || window.event;
+        e.preventDefault();
+        movePanel(e.clientX, e.clientY);
+    }
+
+    function panelDragTouchStart(e) {
+        if (e.touches.length === 1) {
+            isPanelDragging = true;
+            const touch = e.touches[0];
+            panelDragOffsetX = touch.clientX - panelDraggableContainer.offsetLeft;
+            panelDragOffsetY = touch.clientY - panelDraggableContainer.offsetTop;
+            document.ontouchend = closePanelDragElement;
+            document.ontouchmove = panelElementDragTouch;
+            document.body.style.userSelect = 'none';
+        }
+    }
+
+    function panelElementDragTouch(e) {
+        if (!isPanelDragging || e.touches.length !== 1) return;
+        movePanel(e.touches[0].clientX, e.touches[0].clientY);
+    }
+    
+    function movePanel(clientX, clientY) {
+        let newX = clientX - panelDragOffsetX;
+        let newY = clientY - panelDragOffsetY;
+
+        const containerWidth = panelDraggableContainer.offsetWidth;
+        const containerHeight = panelDraggableContainer.offsetHeight;
+        
+        newX = Math.max(0, Math.min(newX, window.innerWidth - containerWidth));
+        newY = Math.max(0, Math.min(newY, window.innerHeight - containerHeight));
+
+        panelDraggableContainer.style.left = newX + "px";
+        panelDraggableContainer.style.top = newY + "px";
+    }
+
+    function closePanelDragElement() {
+        isPanelDragging = false;
+        document.onmouseup = null;
+        document.onmousemove = null;
+        document.ontouchend = null;
+        document.ontouchmove = null;
+        document.body.style.userSelect = '';
+    }
+    // --- End Draggable Panel Logic ---
+
+
+    initializeParameters();
+    randomBtn.click();
+    resizeCanvas();
+  </script>
+</body>
+</html>
