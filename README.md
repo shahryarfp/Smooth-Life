@@ -34,4 +34,3 @@ SmoothLife is a continuous-valued extension of Conway’s Game of Life. Instead 
    - **Interaction radius** (how far a cell “sees” its neighbors)  
    - **Birth/survival bands** (the inner and outer density ranges that promote growth or decay)  
    - **Evolution speed** (how quickly values update)  
-   Experiment to discover fast-moving glider streams, stable droplets, or chaotic turbulence.
